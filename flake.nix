@@ -29,34 +29,49 @@
               hash = "sha256-aNVy/4ofqW1ILn4u6BFuIj5fKTXx4J5n1SqpKJQyOxA=";
             };
 
-            nativeBuildInputs = [ pkgs.jq ];
-
-            postPatch = ''
-              jq '.dependencies."node-pty" = "npm:@homebridge/node-pty-prebuilt-multiarch@^0.1.0"' package.json > package.json.tmp && mv package.json.tmp package.json
-            '';
-
+            nodejs = pkgs.nodejs_22;
             npmDepsHash = "sha256-gtfrdS4iqmB0V7nhVttIqlO4H/ZbCi+ofHld5guIzlw=";
+
+            nativeBuildInputs = [ pkgs.jq pkgs.pkg-config ]
+              ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [ pkgs.clang_20 ];
+
+            buildInputs = [ pkgs.ripgrep pkgs.libsecret ];
 
             preConfigure = ''
               mkdir -p packages/generated
               echo "export const GIT_COMMIT_INFO = { commitHash: '${finalAttrs.src.rev}' };" > packages/generated/git-commit.ts
             '';
 
-            installPhase = ''
-              runHook preInstall
-              mkdir -p $out/{bin,share/gemini-cli}
-
-              cp -rL node_modules $out/share/gemini-cli/
-
-              cp -rL packages/cli $out/share/gemini-cli/node_modules/@google/gemini-cli
-              cp -rL packages/core $out/share/gemini-cli/node_modules/@google/gemini-cli-core
-
-              ln -s $out/share/gemini-cli/node_modules/@google/gemini-cli/dist/index.js $out/bin/gemini
-              runHook postInstall
+            postPatch = ''
+              ${pkgs.jq}/bin/jq 'del(.optionalDependencies."node-pty")' package.json > package.json.tmp && mv package.json.tmp package.json
+              ${pkgs.jq}/bin/jq 'del(.optionalDependencies."node-pty")' packages/core/package.json > packages/core/package.json.tmp && mv packages/core/package.json.tmp packages/core/package.json
+              substituteInPlace packages/core/src/tools/ripGrep.ts \
+                --replace-fail "await ensureRgPath();" "'${pkgs.lib.getExe pkgs.ripgrep}';"
+              sed -i '/disableAutoUpdate: {/,/}/ s/default: false/default: true/' packages/cli/src/config/settingsSchema.ts
+              substituteInPlace packages/cli/src/utils/handleAutoUpdate.ts \
+                --replace-fail "settings.merged.general?.disableAutoUpdate ?? false" "settings.merged.general?.disableAutoUpdate ?? true" \
+                --replace-fail "settings.merged.general?.disableAutoUpdate" "(settings.merged.general?.disableAutoUpdate ?? true)"
+              substituteInPlace packages/cli/src/ui/utils/updateCheck.ts \
+                --replace-fail "settings.merged.general?.disableUpdateNag" "(settings.merged.general?.disableUpdateNag ?? true)"
             '';
 
-            postInstall = ''
+            disallowedReferences = [ finalAttrs.npmDeps pkgs.nodejs_22.python ];
+
+            installPhase = ''
+              runHook preInstall
+              mkdir -p $out/{bin,share/gemini-cli/node_modules/@google}
+              npm prune --omit=dev
+              rm node_modules/shell-quote/print.py
+              cp -r node_modules $out/share/gemini-cli/
+              rm -f $out/share/gemini-cli/node_modules/@google/gemini-cli*
+              rm -f $out/share/gemini-cli/node_modules/gemini-cli-vscode-ide-companion
+              cp -r packages/cli $out/share/gemini-cli/node_modules/@google/gemini-cli
+              cp -r packages/core $out/share/gemini-cli/node_modules/@google/gemini-cli-core
+              cp -r packages/a2a-server $out/share/gemini-cli/node_modules/@google/gemini-cli-a2a-server
+              rm -f $out/share/gemini-cli/node_modules/@google/gemini-cli-core/dist/docs/CONTRIBUTING.md
+              ln -s $out/share/gemini-cli/node_modules/@google/gemini-cli/dist/index.js $out/bin/gemini
               chmod +x "$out/bin/gemini"
+              runHook postInstall
             '';
 
             passthru.updateScript = pkgs.nix-update-script { };
@@ -65,9 +80,8 @@
               description = "AI agent that brings the power of Gemini directly into your terminal";
               homepage = "https://github.com/google-gemini/gemini-cli";
               license = pkgs.lib.licenses.asl20;
-              maintainers = with pkgs.lib.maintainers; [
-                # Add maintainers here if needed
-              ];
+              sourceProvenance = with pkgs.lib.sourceTypes; [ fromSource ];
+              maintainers = with pkgs.lib.maintainers; [ ];
               platforms = pkgs.lib.platforms.all;
               mainProgram = "gemini";
             };
