@@ -30,7 +30,7 @@
             };
 
             nodejs = pkgs.nodejs_22;
-            npmDepsHash = "sha256-gtfrdS4iqmB0V7nhVttIqlO4H/ZbCi+ofHld5guIzlw=";
+            npmDepsHash = "sha256-cjKJyOlrb0J6LuXSPas3w/mf+2kPoOCd566lkK95B2c=";
 
             nativeBuildInputs = [ pkgs.jq pkgs.pkg-config ]
               ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [ pkgs.clang_20 ];
