@@ -20,20 +20,20 @@
 
           gemini-cli = pkgs.buildNpmPackage (finalAttrs: {
             pname = "gemini-cli";
-            version = "0.2.2";
+            version = "0.24.4";
 
             src = pkgs.fetchFromGitHub {
               owner = "google-gemini";
               repo = "gemini-cli";
               tag = "v${finalAttrs.version}";
-              hash = "sha256-ykNgtHtH+PPCycRn9j1lc8UIEHqYj54l0MTeVz6OhsQ=";
+              hash = "sha256-aNVy/4ofqW1ILn4u6BFuIj5fKTXx4J5n1SqpKJQyOxA=";
             };
 
-            patches = [
-              ./restore-missing-dependencies-fields.patch
-            ];
+            postPatch = ''
+              sed -i 's/"node-pty": ".*"/"node-pty": "npm:@homebridge\/node-pty-prebuilt-multiarch@^0.1.0"/' package.json
+            '';
 
-            npmDepsHash = "sha256-gpNt581BHDA12s+3nm95UOYHjoa7Nfe46vgPwFr7ZOU=";
+            npmDepsHash = "sha256-gtfrdS4iqmB0V7nhVttIqlO4H/ZbCi+ofHld5guIzlw=";
 
             preConfigure = ''
               mkdir -p packages/generated
@@ -44,14 +44,10 @@
               runHook preInstall
               mkdir -p $out/{bin,share/gemini-cli}
 
-              cp -r node_modules $out/share/gemini-cli/
+              cp -rL node_modules $out/share/gemini-cli/
 
-              rm -f $out/share/gemini-cli/node_modules/@google/gemini-cli
-              rm -f $out/share/gemini-cli/node_modules/@google/gemini-cli-core
-              rm -f $out/share/gemini-cli/node_modules/@google/gemini-cli-test-utils
-              rm -f $out/share/gemini-cli/node_modules/gemini-cli-vscode-ide-companion
-              cp -r packages/cli $out/share/gemini-cli/node_modules/@google/gemini-cli
-              cp -r packages/core $out/share/gemini-cli/node_modules/@google/gemini-cli-core
+              cp -rL packages/cli $out/share/gemini-cli/node_modules/@google/gemini-cli
+              cp -rL packages/core $out/share/gemini-cli/node_modules/@google/gemini-cli-core
 
               ln -s $out/share/gemini-cli/node_modules/@google/gemini-cli/dist/index.js $out/bin/gemini
               runHook postInstall
