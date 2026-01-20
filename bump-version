@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# If a version is provided as an argument, use it. Otherwise, get the latest release from GitHub.
+if [ "$#" -eq 1 ]; then
+    NEW_VERSION=$1
+else
+    NEW_VERSION=$(curl -s "https://api.github.com/repos/google-gemini/gemini-cli/releases/latest" | jq -r .tag_name | sed 's/v//')
+fi
+
+
+# --- Main script ---
+# Get the directory of the script
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+FLAKE_FILE="$SCRIPT_DIR/flake.nix"
+
+# Fetch the new hash
+NEW_HASH=$(nix-shell -p nix-prefetch-github --run "nix-prefetch-github --rev \"v$NEW_VERSION\" google-gemini gemini-cli | jq -r .hash")
+
+# Get the old version from the flake file
+OLD_VERSION=$(grep 'version = "' "$FLAKE_FILE" | sed -E 's/.*version = "([^"]+)".*/\1/')
+OLD_HASH=$(grep 'hash = "' "$FLAKE_FILE" | sed -E 's/.*hash = "([^"]+)".*/\1/')
+
+# Replace the old version and hash with the new ones
+sed -i.bak -e "s/version = \"$OLD_VERSION\"/version = \"$NEW_VERSION\"/" "$FLAKE_FILE"
+sed -i.bak -e "s|hash = \"$OLD_HASH\"|hash = \"$NEW_HASH\"|" "$FLAKE_FILE"
+
+# Remove the backup file
+rm "$FLAKE_FILE.bak"
+
+echo "Updated flake.nix to version $NEW_VERSION"
