@@ -21,12 +21,43 @@ NEW_HASH=$(nix-shell -p nix-prefetch-github --run "nix-prefetch-github --rev \"v
 # Get the old version from the flake file
 OLD_VERSION=$(grep 'version = "' "$FLAKE_FILE" | sed -E 's/.*version = "([^"]+)".*/\1/')
 OLD_HASH=$(grep 'hash = "' "$FLAKE_FILE" | sed -E 's/.*hash = "([^"]+)".*/\1/')
+OLD_NPM_HASH=$(grep 'npmDepsHash = "' "$FLAKE_FILE" | sed -E 's/.*npmDepsHash = "([^"]+)".*/\1/')
 
 # Replace the old version and hash with the new ones
 sed -i.bak -e "s/version = \"$OLD_VERSION\"/version = \"$NEW_VERSION\"/" "$FLAKE_FILE"
 sed -i.bak -e "s|hash = \"$OLD_HASH\"|hash = \"$NEW_HASH\"|" "$FLAKE_FILE"
 
+# Set a dummy npmDepsHash to trigger a build error that will show us the correct hash
+DUMMY_HASH="sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+sed -i.bak -e "s|npmDepsHash = \"$OLD_NPM_HASH\"|npmDepsHash = \"$DUMMY_HASH\"|" "$FLAKE_FILE"
+
 # Remove the backup file
 rm "$FLAKE_FILE.bak"
 
+echo "Fetching npmDepsHash for version $NEW_VERSION..."
+
+# Try to build and capture the error message containing the correct hash
+BUILD_OUTPUT=$(nix build .#gemini-cli --impure --no-link 2>&1 || true)
+
+# Extract the correct npmDepsHash from the error message
+# Nix will output something like: "got: sha256-AAAA..." and "wanted: sha256-XYZ..."
+NEW_NPM_HASH=$(echo "$BUILD_OUTPUT" | grep -oE 'sha256-[A-Za-z0-9+/=]{44}' | tail -1 || echo "")
+
+if [ -z "$NEW_NPM_HASH" ]; then
+    echo "Warning: Could not automatically determine npmDepsHash."
+    echo "Build output:"
+    echo "$BUILD_OUTPUT"
+    echo ""
+    echo "Please update npmDepsHash manually by running:"
+    echo "  nix build .#gemini-cli --impure --no-link"
+    echo "and extracting the correct hash from the error message."
+    exit 1
+fi
+
+# Update the npmDepsHash with the correct value
+sed -i.bak -e "s|npmDepsHash = \"$DUMMY_HASH\"|npmDepsHash = \"$NEW_NPM_HASH\"|" "$FLAKE_FILE"
+rm "$FLAKE_FILE.bak"
+
 echo "Updated flake.nix to version $NEW_VERSION"
+echo "  Source hash: $NEW_HASH"
+echo "  npmDepsHash: $NEW_NPM_HASH"
