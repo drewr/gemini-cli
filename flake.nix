@@ -29,8 +29,10 @@
               hash = "sha256-aNVy/4ofqW1ILn4u6BFuIj5fKTXx4J5n1SqpKJQyOxA=";
             };
 
+            nativeBuildInputs = [ pkgs.jq ];
+
             postPatch = ''
-              sed -i 's/"node-pty": ".*"/"node-pty": "npm:@homebridge\/node-pty-prebuilt-multiarch@^0.1.0"/' package.json
+              jq '.dependencies."node-pty" = "npm:@homebridge/node-pty-prebuilt-multiarch@^0.1.0"' package.json > package.json.tmp && mv package.json.tmp package.json
             '';
 
             npmDepsHash = "sha256-gtfrdS4iqmB0V7nhVttIqlO4H/ZbCi+ofHld5guIzlw=";
