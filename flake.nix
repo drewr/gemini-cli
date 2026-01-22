@@ -55,7 +55,7 @@
                 --replace-fail "settings.merged.general?.disableUpdateNag" "(settings.merged.general?.disableUpdateNag ?? true)"
             '';
 
-            disallowedReferences = [ finalAttrs.npmDeps pkgs.nodejs_22.python ];
+
 
             installPhase = ''
               runHook preInstall
