@@ -20,17 +20,17 @@
 
           gemini-cli = pkgs.buildNpmPackage (finalAttrs: {
             pname = "gemini-cli";
-            version = "0.24.5";
+            version = "0.25.1";
 
             src = pkgs.fetchFromGitHub {
               owner = "google-gemini";
               repo = "gemini-cli";
               tag = "v${finalAttrs.version}";
-              hash = "sha256-lv3qqFSDz49CbeYftQJSo4D/hYyJyktoSrU0xF2aPtw=";
+              hash = "sha256-avpdU379wSKj0L5VfDUHzEXxJW3sE6VKJE/gTvCGxtM=";
             };
 
             nodejs = pkgs.nodejs_22;
-            npmDepsHash = "sha256-cjKJyOlrb0J6LuXSPas3w/mf+2kPoOCd566lkK95B2c=";
+            npmDepsHash = "sha256-VEqV2flvxylrJrkfX8wCiYZ8r4tfUeJUEi3rY53h8y4=";
 
             nativeBuildInputs = [ pkgs.jq pkgs.pkg-config ]
               ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [ pkgs.clang_20 ];
